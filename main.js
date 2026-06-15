@@ -503,6 +503,135 @@ serviceTabs.forEach((button) => {
   });
 });
 
+function setupCustomSelect(select) {
+  const options = Array.from(select.options);
+  const selectableOptions = options.filter((option) => option.value);
+  if (!selectableOptions.length) {
+    return;
+  }
+
+  const shell = document.createElement("div");
+  shell.className = "select-shell";
+
+  const trigger = document.createElement("button");
+  trigger.type = "button";
+  trigger.className = "select-trigger";
+  trigger.setAttribute("aria-haspopup", "listbox");
+  trigger.setAttribute("aria-expanded", "false");
+
+  const valueNode = document.createElement("span");
+  valueNode.className = "select-value";
+  trigger.appendChild(valueNode);
+
+  const dropdown = document.createElement("div");
+  dropdown.className = "select-dropdown";
+  dropdown.setAttribute("role", "listbox");
+
+  select.after(shell);
+  shell.append(select, trigger, dropdown);
+  select.classList.add("is-enhanced");
+
+  selectableOptions.forEach((option) => {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "select-option";
+    item.dataset.value = option.value;
+    item.setAttribute("role", "option");
+    item.textContent = option.textContent;
+    dropdown.appendChild(item);
+
+    item.addEventListener("click", () => {
+      select.value = option.value;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+      closeSelect();
+      trigger.focus();
+    });
+  });
+
+  function syncSelectState() {
+    const selectedOption = select.options[select.selectedIndex];
+    const selectedValue = select.value;
+
+    valueNode.textContent = selectedOption ? selectedOption.textContent : "";
+    trigger.classList.toggle("is-placeholder", !selectedValue);
+
+    dropdown.querySelectorAll(".select-option").forEach((item) => {
+      const isSelected = item.dataset.value === selectedValue;
+      item.classList.toggle("is-selected", isSelected);
+      item.setAttribute("aria-selected", String(isSelected));
+    });
+  }
+
+  function closeSelect() {
+    shell.classList.remove("is-open");
+    trigger.setAttribute("aria-expanded", "false");
+  }
+
+  function openSelect() {
+    document.querySelectorAll(".select-shell.is-open").forEach((node) => {
+      if (node !== shell) {
+        node.classList.remove("is-open");
+        node.querySelector(".select-trigger")?.setAttribute("aria-expanded", "false");
+      }
+    });
+
+    shell.classList.add("is-open");
+    trigger.setAttribute("aria-expanded", "true");
+  }
+
+  trigger.addEventListener("click", () => {
+    if (shell.classList.contains("is-open")) {
+      closeSelect();
+      return;
+    }
+    openSelect();
+  });
+
+  trigger.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openSelect();
+      dropdown.querySelector(".select-option.is-selected, .select-option")?.focus();
+    }
+
+    if (event.key === "Escape") {
+      closeSelect();
+    }
+  });
+
+  dropdown.addEventListener("keydown", (event) => {
+    const items = Array.from(dropdown.querySelectorAll(".select-option"));
+    const currentIndex = items.indexOf(document.activeElement);
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeSelect();
+      trigger.focus();
+    }
+
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const direction = event.key === "ArrowDown" ? 1 : -1;
+      const nextIndex =
+        currentIndex >= 0
+          ? (currentIndex + direction + items.length) % items.length
+          : 0;
+      items[nextIndex]?.focus();
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!shell.contains(event.target)) {
+      closeSelect();
+    }
+  });
+
+  select.addEventListener("change", syncSelectState);
+  syncSelectState();
+}
+
+document.querySelectorAll(".contact-form select").forEach(setupCustomSelect);
+
 if (menuToggle && header) {
   menuToggle.addEventListener("click", () => {
     const isOpen = header.classList.toggle("is-open");
